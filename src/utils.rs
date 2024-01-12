@@ -173,7 +173,7 @@ pub async fn chat_inner(
 
     if response.status().is_success() {
         let chat_response = response.json::<ChatResponse>().await?;
-        println!("{:?}", chat_response.content.clone());
+        // println!("{:?}", chat_response.content.clone());
         Ok(chat_response.content)
     } else {
         Err(anyhow::anyhow!("Request failed with status: {}", response.status()))

@@ -1,0 +1,74 @@
+
+
+Commit: "https://github.com/WasmEdge/WasmEdge/commit/7254c782f61f0a17d0a200e7a0453e9a148830ec.patch", Summary: "\n\nThis commit updates the ggml dependency to version b1808. The main impact of this change is to ensure that the WASI-NN plugin has access to the latest features and bug fixes in ggml. This update may also introduce new functionality or changes in API behavior, which should be examined by users who rely on the plugin. However, given that the update only involves a version bump, it is likely that most of the underlying code structure will remain unchanged. Overall, dm4's contribution in this commit is a minor one, primarily focused on maintaining the project's compatibility with up"
+Commit: "https://github.com/WasmEdge/WasmEdge/commit/e78fedfdfc0e5eba74aa96d16ee677553cfbfde4.patch", Summary: "\n\nSummary:\n- Implemented Wasi-NN RPC server tool. Added support to build the Wasi-NN RPC tool in CMake and add `WasiNNRPCServer` command.\n  * Supported wasi-nn-rpc RPC server tool\n  * Fixed missing `std::string_view` import on Windows.\n  * Updated WASM build system to support WASI-NN RPC.\n  * Fixed the build order of the NN-RPC server.\n  - Modified CMakeLists.txt to add WASI-NN"
+Commit: "https://github.com/WasmEdge/WasmEdge/commit/e296dfcf3e7e8f1e4338d6122888762d87c51359.patch", Summary: "\nThe commit patch disables OpenVINO in the CI build configuration and release workflow, due to a conflict with libprotobuf-dev. The latest version of OpenVINO has a significantly changed API. This is a substantial change that affects the project's functionality by temporarily suspending OpenVINO support during the CI process and package releases. However, this does not indicate a permanent removal of OpenVINO from the project.AkihiroSudaAkihiroSudaAkihiroSudaAkihiroSudaAkihiroSuda\n"
+Commit: "https://github.com/WasmEdge/WasmEdge/commit/d4b4f89c2b97f1c68b3e0bf9d76b57bd1a18223f.patch", Summary: "\n\nUpdated the URL of Boost tarball used in the wasmedge_image plugin. The change will not impact the functionality of the plugin, as it only alters the source location. It's a minor update to the project, mainly benefiting from better documentation and maintaining up-to-date sources. The realistic impact is low, given that the URL change does not affect how the code or plugin operates.\n\nUpdated the URL of Boost tarball used in the wasmedge_image plugin. This commit patch changes the source location for the plugin without"
+Commit: "https://github.com/WasmEdge/WasmEdge/commit/dd9d1782e586408b5db1dc0f142029330b68cc8c.patch", Summary: "\n\n**Commit Summary**: This commit patch adds support for setting the number of Llama threads in ggml. The changes affect multiple files and add code to handle configuration options for the llama_ggml backend. The main modifications include:\n1. Adding a `threads` field in the JSON metadata configuration.\n2. Parsing the `threads` field from the JSON metadata.\n3. Updating context parameters with the parsed thread number.\n4. Applying the updated thread count to llama_new_context_with_model and llama_context_default_params functions.\n\nThe"
+Commit: "https://github.com/WasmEdge/WasmEdge/commit/04f020807155d2de35e46c6340570a1d07f63db1.patch", Summary: "\n\ndm4 added code to print llama timing in the fini_single function. This modification affects the core functionality by adding logging capabilities for llama timings, which can be beneficial for performance analysis and debugging purposes. While the change is relatively minor, it has the potential to improve the performance and reliability of the project. Overall, this commit patch contributes positively to the WASI-NN system by enhancing its logging capabilities and performance monitoring tools.\n\n\n\nSummary: This commit adds code for printing llama"
+Commit: "https://github.com/WasmEdge/WasmEdge/commit/28cb13b2f4dd5dcb8d8f0c3c1db2cb2877cd9f56.patch", Summary: "\n\ndm4 has modified the logging mechanism for ContextFull and PromptTooLong conditions in the GGML backend. The changes consist of replacing error log messages with informational log messages when logging is enabled, as well as modifying the message text to provide additional guidance about reducing input size. These modifications will enhance the clarity of error handling and user communication in the backend, making it easier for users to understand what went wrong and how they might correct it.\n\ndm4's contributions have improved the GGML backend's logging mechanism, resulting in a more informative and helpful system for end-users and developers. The"
+Commit: "https://github.com/WasmEdge/WasmEdge/commit/c85a7d225a9b7b6de6dcebae2c9a44fb82f5d1c9.patch", Summary: "\n\nThis commit patch made several modifications to the .github/workflows/release.yml file, fixing the SBOM workflow in the CI pipeline. The changes affect how the tar.gz file is generated and uploaded during the release process. Specifically, the workflow removes steps for installing gh-cli and generating a tarball from the SBOM. The realistic impact of these changes on the project is limited, as they only remove redundant tools and streamline the workflow without changing core functionality.\n\nThe commit patch by hydai made several modifications to the .github/work"
+Commit: "https://github.com/WasmEdge/WasmEdge/commit/b4e84a7f7ea3b4cad72476a580dfb4fa481227c6.patch", Summary: "\n\nThe primary changes in this commit are the introduction of new C API functions related to Typed Function References and Component Model, as well as some improvements and bug fixes. This release prepares for supporting Typed Function References proposal and Component Model proposal by adding relevant APIs and adjusting the existing APIs accordingly.\n\nThis commit introduces some substantial changes in the C API such as new functions related to `WasmEdge_ValType`, `WasmEdge_Bytes` and `WasmEdge_TableInstanceCreateWithInit`. It also fixes some known issues like large timestamp causing overflow, handling H"
+Commit: "https://github.com/WasmEdge/WasmEdge/commit/ebb57a4241662edfaaad33d046fde909f1e6ac6b.patch", Summary: "\n\n#### Summary: This commit changes the labeler configuration to adapt to breaking changes from v4 to v5. It modifies the glob-to-any-file function and adjusts the job names for better organization. The impact of these changes is limited, as they affect the CI pipeline rather than core functionality. #### Impact: Limited\n##### Analysis\nThe commit made by hydai consists mainly of modifications to the labeler configuration in order to adapt to breaking changes from version 4 to version 5. The primary changes include reorganizing the glob-to-any-file function and altering job names for better"
+user: q82419  url:https://github.com/WasmEdge/WasmEdge/commit/b4e84a7f7ea3b4cad72476a580dfb4fa481227c6 summary: 
+
+The primary changes in this commit are the introduction of new C API functions related to Typed Function References and Component Model, as well as some improvements and bug fixes. This release prepares for supporting Typed Function References proposal and Component Model proposal by adding relevant APIs and adjusting the existing APIs accordingly.
+
+This commit introduces some substantial changes in the C API such as new functions related to `WasmEdge_ValType`, `WasmEdge_Bytes` and `WasmEdge_TableInstanceCreateWithInit`. It also fixes some known issues like large timestamp causing overflow, handling H
+user: dm4  url:https://github.com/WasmEdge/WasmEdge/commit/7254c782f61f0a17d0a200e7a0453e9a148830ec
+https://github.com/WasmEdge/WasmEdge/commit/d4b4f89c2b97f1c68b3e0bf9d76b57bd1a18223f
+https://github.com/WasmEdge/WasmEdge/commit/dd9d1782e586408b5db1dc0f142029330b68cc8c
+https://github.com/WasmEdge/WasmEdge/commit/04f020807155d2de35e46c6340570a1d07f63db1
+https://github.com/WasmEdge/WasmEdge/commit/28cb13b2f4dd5dcb8d8f0c3c1db2cb2877cd9f56 summary: 
+
+This commit updates the ggml dependency to version b1808. The main impact of this change is to ensure that the WASI-NN plugin has access to the latest features and bug fixes in ggml. This update may also introduce new functionality or changes in API behavior, which should be examined by users who rely on the plugin. However, given that the update only involves a version bump, it is likely that most of the underlying code structure will remain unchanged. Overall, dm4's contribution in this commit is a minor one, primarily focused on maintaining the project's compatibility with up
+
+
+Updated the URL of Boost tarball used in the wasmedge_image plugin. The change will not impact the functionality of the plugin, as it only alters the source location. It's a minor update to the project, mainly benefiting from better documentation and maintaining up-to-date sources. The realistic impact is low, given that the URL change does not affect how the code or plugin operates.
+
+Updated the URL of Boost tarball used in the wasmedge_image plugin. This commit patch changes the source location for the plugin without
+
+
+**Commit Summary**: This commit patch adds support for setting the number of Llama threads in ggml. The changes affect multiple files and add code to handle configuration options for the llama_ggml backend. The main modifications include:
+1. Adding a `threads` field in the JSON metadata configuration.
+2. Parsing the `threads` field from the JSON metadata.
+3. Updating context parameters with the parsed thread number.
+4. Applying the updated thread count to llama_new_context_with_model and llama_context_default_params functions.
+
+The
+
+
+dm4 added code to print llama timing in the fini_single function. This modification affects the core functionality by adding logging capabilities for llama timings, which can be beneficial for performance analysis and debugging purposes. While the change is relatively minor, it has the potential to improve the performance and reliability of the project. Overall, this commit patch contributes positively to the WASI-NN system by enhancing its logging capabilities and performance monitoring tools.
+
+
+
+Summary: This commit adds code for printing llama
+
+
+dm4 has modified the logging mechanism for ContextFull and PromptTooLong conditions in the GGML backend. The changes consist of replacing error log messages with informational log messages when logging is enabled, as well as modifying the message text to provide additional guidance about reducing input size. These modifications will enhance the clarity of error handling and user communication in the backend, making it easier for users to understand what went wrong and how they might correct it.
+
+dm4's contributions have improved the GGML backend's logging mechanism, resulting in a more informative and helpful system for end-users and developers. The
+user: AkihiroSuda  url:https://github.com/WasmEdge/WasmEdge/commit/e78fedfdfc0e5eba74aa96d16ee677553cfbfde4
+https://github.com/WasmEdge/WasmEdge/commit/e296dfcf3e7e8f1e4338d6122888762d87c51359 summary: 
+
+Summary:
+- Implemented Wasi-NN RPC server tool. Added support to build the Wasi-NN RPC tool in CMake and add `WasiNNRPCServer` command.
+  * Supported wasi-nn-rpc RPC server tool
+  * Fixed missing `std::string_view` import on Windows.
+  * Updated WASM build system to support WASI-NN RPC.
+  * Fixed the build order of the NN-RPC server.
+  - Modified CMakeLists.txt to add WASI-NN
+
+The commit patch disables OpenVINO in the CI build configuration and release workflow, due to a conflict with libprotobuf-dev. The latest version of OpenVINO has a significantly changed API. This is a substantial change that affects the project's functionality by temporarily suspending OpenVINO support during the CI process and package releases. However, this does not indicate a permanent removal of OpenVINO from the project.AkihiroSudaAkihiroSudaAkihiroSudaAkihiroSudaAkihiroSuda
+
+user: hydai  url:https://github.com/WasmEdge/WasmEdge/commit/c85a7d225a9b7b6de6dcebae2c9a44fb82f5d1c9
+https://github.com/WasmEdge/WasmEdge/commit/ebb57a4241662edfaaad33d046fde909f1e6ac6b summary: 
+
+This commit patch made several modifications to the .github/workflows/release.yml file, fixing the SBOM workflow in the CI pipeline. The changes affect how the tar.gz file is generated and uploaded during the release process. Specifically, the workflow removes steps for installing gh-cli and generating a tarball from the SBOM. The realistic impact of these changes on the project is limited, as they only remove redundant tools and streamline the workflow without changing core functionality.
+
+The commit patch by hydai made several modifications to the .github/work
+
+
+#### Summary: This commit changes the labeler configuration to adapt to breaking changes from v4 to v5. It modifies the glob-to-any-file function and adjusts the job names for better organization. The impact of these changes is limited, as they affect the CI pipeline rather than core functionality. #### Impact: Limited
+##### Analysis
+The commit made by hydai consists mainly of modifications to the labeler configuration in order to adapt to breaking changes from version 4 to version 5. The primary changes include reorganizing the glob-to-any-file function and altering job names for better

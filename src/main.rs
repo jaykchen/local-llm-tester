@@ -64,7 +64,7 @@ async fn main() {
             None => println!("failed to get commits"),
         }
         for (key, value) in commits_map {
-            println!("user: {}  url:{} summary: {}", key, value.0, value.1);
+            // println!("user: {}  url:{} summary: {}", key, value.0, value.1);
         }
     }
 }

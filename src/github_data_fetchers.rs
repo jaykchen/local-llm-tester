@@ -307,7 +307,7 @@ pub async fn get_commits_in_range_search(
 
     let url_str =
         format!("https://api.github.com/search/commits?q={}&sort=committer-date&order=desc&per_page=100", encoded_query);
-    println!("url_str: {}", url_str);
+    // println!("url_str: {}", url_str);
 
     // let url_str = format!(
     //     "https://api.github.com/repos/wasmedge/wasmedge/commits?q=author:hydai%20committer-date:>2024-01-04&author=hydai&sort=desc&per_page=100"
@@ -321,7 +321,7 @@ pub async fn get_commits_in_range_search(
         Ok(commits_page) => {
             for commit in &commits_page.items {
                 if let Some(author) = &commit.author {
-                    println!("commit url: {:?}", &commit.html_url.clone());
+                    // println!("commit url: {:?}", &commit.html_url.clone());
                     git_memory_vec.push(GitMemory {
                         memory_type: MemoryType::Commit,
                         name: author.login.clone(),

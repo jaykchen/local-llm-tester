@@ -441,30 +441,35 @@ pub async fn process_commits(
         let url = format!("{}.patch", commit_obj.source_url);
         let response = github_http_get(&url).await?;
         let text = String::from_utf8(response)?;
-        // println!("text: {:?}", text.clone());
+        let raw_len = text.clone().len();
         let stripped_texts = text.chars().take(24_000).collect::<String>();
         // let stripped_texts = String::from_utf8(response).ok()?.chars().take(24_000).collect::<String>();
         let user_name = commit_obj.name.clone();
         let sys_prompt_1 = format!(
-            "Given a commit patch from user {user_name}, analyze its content. Focus on changes that substantively alter code or functionality. A good analysis prioritizes the commit message for clues on intent and refrains from overstating the impact of minor changes. Aim to provide a balanced, fact-based representation that distinguishes between major and minor contributions to the project. Keep your analysis concise."
+            "Given a commit patch from user {user_name}, analyze its content."
         );
         let tag_line = commit_obj.tag_line;
         let usr_prompt_1 = format!(
-            "Analyze the commit patch: {stripped_texts}, and its description: {tag_line}. Summarize the main changes, but only emphasize modifications that directly affect core functionality. A good summary is fact-based, derived primarily from the commit message, and avoids over-interpretation. It recognizes the difference between minor textual changes and substantial code adjustments. Conclude by evaluating the realistic impact of {user_name}'s contributions in this commit on the project. Limit the response to 110 tokens."
+            "Review the commit patch: {stripped_texts}, with its description: {tag_line}. Summarize key changes, highlighting those with significant impact on code or functionality. Base your summary on facts from the commit message, clearly differentiating between major and minor modifications. Assess the impact of {user_name}'s work on the project without speculation. Keep the summary succinct."
         );
-        let summary = chat_inner(&sys_prompt_1, &usr_prompt_1, 128).await?;
-        println!("Summary: {:?}", summary.clone());
+
+        let usr_prompt_1 = format!(
+            "For the commit patch {stripped_texts}, with description: {tag_line}, capture the primary impact of the changes {user_name} made on the project's core functionality in one sentence, a multi-part sentence if necessary. Ensure the summary is clear and accessible to a non-technical audience, strictly avoiding any inclusion of code snippets, file paths, metadata, or other technical details."
+        );
+        let usr_prompt_1 = format!(
+            "Craft a one-sentence, non-technical summary for the commit: {stripped_texts}, with description: {tag_line}, focusing on the overall impact on the project. Avoid technical specifics, code excerpts, file changes, and metadata. The summary should be accessible to a general audience and provide insight into the value or improvement the commit brings to the project, as informed by the commit message and description from {user_name}."
+        );
+        
+        // let usr_prompt_1 = format!(
+        //     "Analyze the commit patch: {stripped_texts}, and its description: {tag_line}. Focus on changes that substantively alter code or functionality. Aim to provide a balanced, fact-based representation that distinguishes between major and minor contributions to the project. Summarize the main changes, but only emphasize modifications that directly affect core functionality. A good summary is fact-based, derived primarily from the commit message, and avoids over-interpretation. It recognizes the difference between minor textual changes and substantial code adjustments. Conclude by evaluating the realistic impact of {user_name}'s contributions in this commit on the project. Keep the summary concise."
+        // );
+        let summary = chat_inner(&sys_prompt_1, &usr_prompt_1, 110).await?;
+        println!("Commit: {:?}\n len: {} Summary: {:?}", url, raw_len, summary.clone());
         results.push((commit_obj.name, commit_obj.source_url, summary));
     }
 
     for result in results {
         let (user_name, url, summary): (String, String, String) = result;
-        // println!(
-        //     "User: {:?}, Url: {:?}, Summary: {:?}",
-        //     user_name.clone(),
-        //     url.clone(),
-        //     summary.clone()
-        // );
         commits_map
             .entry(user_name.clone())
             .and_modify(|tup| {
