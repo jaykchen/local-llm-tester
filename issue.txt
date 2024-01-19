@@ -1,0 +1,8 @@
+Feature Request: expose max_token to client side, so that user can set per query #87
+Open
+jaykchen opened this issue 2 hours ago · 0 comments
+Comments
+@jaykchen
+jaykchen commented 2 hours ago
+Summary
+in my summarization task, I need to set the max_token parameter so that llm can stop generation at the length I need. Without the ability to set it on the user side, llm will continue generating to the n_predict length, which is not my desired result.

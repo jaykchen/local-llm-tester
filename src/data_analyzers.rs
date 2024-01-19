@@ -95,7 +95,7 @@ pub async fn analyze_readme(content: &str) -> Option<String> {
         "Based on the profile and README provided: {content}, extract a concise summary detailing this project's factual significance in its domain, their areas of expertise, and the main features and goals of the project. Ensure the insights are objective and under 110 tokens."
     );
 
-    match chat_inner(sys_prompt_1, usr_prompt_1, 256).await {
+    match chat_inner_async(sys_prompt_1, usr_prompt_1, 256, "mistralai/Mistral-7B-Instruct-v0.1").await {
         Ok(r) => {
             return Some(r);
         }
@@ -263,7 +263,7 @@ pub async fn analyze_issue_integrated(
         commenters_to_watch_str
     );
 
-    match chat_inner(sys_prompt_1, usr_prompt_1, 128).await {
+    match chat_inner_async(sys_prompt_1, usr_prompt_1, 128, "mistralai/Mistral-7B-Instruct-v0.1").await {
         Ok(r) => {
             let parsed = parse_issue_summary_from_json(&r)
                 .ok()
@@ -417,7 +417,7 @@ pub async fn analyze_commit_integrated(
         Some(s) => s.chars().take(5).collect::<String>(),
         None => "0000".to_string(),
     };
-    match chat_inner(sys_prompt_1, usr_prompt_1, 128).await {
+    match chat_inner_async(sys_prompt_1, usr_prompt_1, 128, "mistralai/Mistral-7B-Instruct-v0.1").await {
         Ok(r) => {
             let out = format!("{} {}", url, r);
             Ok(out)
@@ -445,25 +445,31 @@ pub async fn process_commits(
         let stripped_texts = text.chars().take(24_000).collect::<String>();
         // let stripped_texts = String::from_utf8(response).ok()?.chars().take(24_000).collect::<String>();
         let user_name = commit_obj.name.clone();
-        let sys_prompt_1 = format!(
-            "Given a commit patch from user {user_name}, analyze its content."
-        );
+
         let tag_line = commit_obj.tag_line;
-        let usr_prompt_1 = format!(
-            "Review the commit patch: {stripped_texts}, with its description: {tag_line}. Summarize key changes, highlighting those with significant impact on code or functionality. Base your summary on facts from the commit message, clearly differentiating between major and minor modifications. Assess the impact of {user_name}'s work on the project without speculation. Keep the summary succinct."
+
+        let sys_prompt_1 = format!(
+            "You're a GitHub data analysis bot. Analyze the following commit patch for its content and implications."
         );
 
         let usr_prompt_1 = format!(
-            "For the commit patch {stripped_texts}, with description: {tag_line}, capture the primary impact of the changes {user_name} made on the project's core functionality in one sentence, a multi-part sentence if necessary. Ensure the summary is clear and accessible to a non-technical audience, strictly avoiding any inclusion of code snippets, file paths, metadata, or other technical details."
+            "Examine the commit patch: {stripped_texts}, and identify the key changes and their potential impact on the project. Exclude technical specifics, code excerpts, file changes, and metadata. Highlight only those changes that substantively alter code or functionality. Provide a fact-based representation that differentiates major from minor contributions. The commit is described as: '{tag_line}'. Summarize the main changes, focusing on modifications that directly affect core functionality, and provide insight into the value or improvement the commit brings to the project."
         );
-        let usr_prompt_1 = format!(
-            "Craft a one-sentence, non-technical summary for the commit: {stripped_texts}, with description: {tag_line}, focusing on the overall impact on the project. Avoid technical specifics, code excerpts, file changes, and metadata. The summary should be accessible to a general audience and provide insight into the value or improvement the commit brings to the project, as informed by the commit message and description from {user_name}."
+
+        let usr_prompt_2 = format!(
+            "Based on the analysis provided, craft a concise, non-technical summary of the key technical contributions made by {user_name} this week. The summary should be a full sentence or a short paragraph suitable for a general audience, emphasizing the contributions' significance to the project."
         );
-        
-        // let usr_prompt_1 = format!(
-        //     "Analyze the commit patch: {stripped_texts}, and its description: {tag_line}. Focus on changes that substantively alter code or functionality. Aim to provide a balanced, fact-based representation that distinguishes between major and minor contributions to the project. Summarize the main changes, but only emphasize modifications that directly affect core functionality. A good summary is fact-based, derived primarily from the commit message, and avoids over-interpretation. It recognizes the difference between minor textual changes and substantial code adjustments. Conclude by evaluating the realistic impact of {user_name}'s contributions in this commit on the project. Keep the summary concise."
-        // );
-        let summary = chat_inner(&sys_prompt_1, &usr_prompt_1, 110).await?;
+
+
+        let summary = chain_of_chat(
+            &sys_prompt_1,
+            &usr_prompt_1,
+            "commit-99",
+            512,
+            &usr_prompt_2,
+            128,
+            "chained-prompt-commit"
+        ).await?;
         println!("Commit: {:?}\n len: {} Summary: {:?}", url, raw_len, summary.clone());
         results.push((commit_obj.name, commit_obj.source_url, summary));
     }

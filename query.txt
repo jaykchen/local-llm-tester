@@ -1,0 +1,6 @@
+{
+     "model": "gpt4all-j", 
+     "messages": [{"role": "user", "content": "Summarize this: bombing more than a dozen sites used by the Iranian-backed Houthis in Yemen on Thursday in a massive retaliatory strike using warship-launched Tomahawk med, said they heard five strong explosions hitting the western port area of the city, which lies on the Red Sea and is the largest port city controlled by the Houthis. Explosions also were heard by residents of Taiz, a southwestern city near the Red Sea."}],
+     "max_token": 128,
+     "temperature": 0.1 
+   }

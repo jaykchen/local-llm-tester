@@ -1,10 +1,96 @@
 use reqwest::{ Client, header };
-
 use http_req::{ request::Method, request::Request, response, uri::Uri };
 use log;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashSet;
+use reqwest::header::{ HeaderMap, AUTHORIZATION };
+use secrecy::{ ExposeSecret, Secret };
+use std::collections::HashMap;
+
+use async_openai::{
+    config::Config,
+    types::{
+        Embedding,
+        // ChatCompletionFunctionsArgs, ChatCompletionRequestMessage,
+        ChatCompletionRequestSystemMessageArgs,
+        ChatCompletionRequestUserMessageArgs,
+        // ChatCompletionTool, ChatCompletionToolArgs, ChatCompletionToolType,
+        CreateChatCompletionRequestArgs,
+        // FinishReason,
+        CreateEmbeddingRequestArgs,
+        CreateEmbeddingResponse,
+        CreateEmbeddingRequest,
+        OpenAIError,
+    },
+    Models,
+    Client as OpenAIClient,
+};
+use std::env;
+
+pub struct CustomEmbeddings<'c, C: Config> {
+    client: &'c OpenAIClient<C>,
+}
+
+impl<'c, C: Config> CustomEmbeddings<'c, C> {
+    pub fn new(client: &'c OpenAIClient<C>) -> Self {
+        Self { client }
+    }
+
+    /// Creates an embedding vector representing the input text using the base URL.
+    pub async fn create(
+        &self,
+        request: CreateEmbeddingRequest
+    ) -> Result<CreateEmbeddingResponse, OpenAIError> {
+        // Use the base URL only without appending "/embeddings"
+        // self.client.post("", request).await
+ let request_maker = self
+            .client
+            .post(self.config.url(path))
+            .query(&self.config.query())
+            .headers(self.config.headers())
+            .json(&request)
+            .build()?;
+
+    self.execute(request_maker).await    }
+}
+
+
+
+// Usage in your `create_embed` function:
+pub async fn create_embed(input: &str) -> anyhow::Result<Vec<f32>> {
+    use reqwest::header::{ HeaderValue, CONTENT_TYPE, USER_AGENT };
+    let token = env::var("DEEP_API_KEY").unwrap_or(String::from("DEEP_API_KEY-must-be-set"));
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    headers.insert(USER_AGENT, HeaderValue::from_static("MyClient/1.0.0"));
+    let config = LocalServiceProviderConfig {
+        api_base: String::from("http://52.37.228.1:80/embed"),
+        headers: headers,
+        api_key: Secret::new(token),
+        query: HashMap::new(),
+    };
+
+    let client = OpenAIClient::with_config(config);
+
+    // Use CustomEmbeddings instead of the library's Embeddings
+    let custom_embeddings = CustomEmbeddings::new(&client);
+
+    // Create a request as before
+    let request = CreateEmbeddingRequestArgs::default()
+        .model("BAAI/bge-large-en-v1.5")
+        .input(input)
+        .build()
+        .unwrap();
+
+    match custom_embeddings.create(request).await {
+        Ok(response) => Ok(response.data.get(0).unwrap().embedding.clone()),
+        Err(_e) => {
+            println!("Error getting response from hosted LLM: {:?}", _e);
+            Err(anyhow::Error::msg("{_e}".to_string()))
+        }
+    }
+}
 
 pub fn squeeze_fit_remove_quoted(inp_str: &str, max_len: u16, split: f32) -> String {
     let mut body = String::new();
@@ -80,7 +166,7 @@ pub fn squeeze_fit_post_texts(inp_str: &str, max_len: u16, split: f32) -> String
         .map_or("failed to decode tokens".to_string(), |s| s.to_string())
 }
 
-/* pub async fn chain_of_chat(
+pub async fn chain_of_chat(
     sys_prompt_1: &str,
     usr_prompt_1: &str,
     chat_id: &str,
@@ -89,7 +175,22 @@ pub fn squeeze_fit_post_texts(inp_str: &str, max_len: u16, split: f32) -> String
     gen_len_2: u16,
     error_tag: &str
 ) -> anyhow::Result<String> {
-    let client = Client::new();
+    use reqwest::header::{ HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT };
+
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    headers.insert(USER_AGENT, HeaderValue::from_static("MyClient/1.0.0"));
+    let config = LocalServiceProviderConfig {
+        // api_base: String::from("http://127.0.0.1:8080/v1"),
+        // api_base: String::from("http://52.37.228.1:8080/v1"),
+        api_base: String::from("https://api.deepinfra.com/v1/openai/chat/completions"),
+        headers: headers,
+        api_key: Secret::new("lY2h5Vd5wgdyICzjOyDmmmToeU3KyLgv".to_string()),
+        query: HashMap::new(),
+    };
+
+    let model = "DEEP_API_KEY-must-be-set";
+    let client = OpenAIClient::with_config(config);
 
     let mut messages = vec![
         ChatCompletionRequestSystemMessageArgs::default()
@@ -101,15 +202,17 @@ pub fn squeeze_fit_post_texts(inp_str: &str, max_len: u16, split: f32) -> String
     ];
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(gen_len_1)
-        .model("gpt-3.5-turbo-1106")
+        .model(model)
         .messages(messages.clone())
         .build()?;
+
+    // dbg!("{:?}", request.clone());
 
     let chat = client.chat().create(request).await?;
 
     match chat.choices[0].message.clone().content {
         Some(res) => {
-            // println!("{:?}", res);
+            println!("{:?}", res);
         }
         None => {
             return Err(anyhow::anyhow!(error_tag.to_string()));
@@ -122,7 +225,7 @@ pub fn squeeze_fit_post_texts(inp_str: &str, max_len: u16, split: f32) -> String
 
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(gen_len_2)
-        .model("gpt-3.5-turbo-1106")
+        .model(model)
         .messages(messages)
         .build()?;
 
@@ -130,53 +233,97 @@ pub fn squeeze_fit_post_texts(inp_str: &str, max_len: u16, split: f32) -> String
 
     match chat.choices[0].message.clone().content {
         Some(res) => {
-            // println!("{:?}", res);
+            println!("{:?}", res);
             Ok(res)
         }
         None => {
             return Err(anyhow::anyhow!(error_tag.to_string()));
         }
     }
-} */
+}
 
-pub async fn chat_inner(
+#[derive(Clone, Debug)]
+pub struct LocalServiceProviderConfig {
+    pub api_base: String,
+    pub headers: HeaderMap,
+    pub api_key: Secret<String>,
+    pub query: HashMap<String, String>,
+}
+
+impl Config for LocalServiceProviderConfig {
+    fn headers(&self) -> HeaderMap {
+        self.headers.clone()
+    }
+
+    fn url(&self, path: &str) -> String {
+        format!("{}{}", self.api_base, path)
+    }
+
+    fn query(&self) -> Vec<(&str, &str)> {
+        self.query
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect()
+    }
+
+    fn api_base(&self) -> &str {
+        &self.api_base
+    }
+
+    fn api_key(&self) -> &Secret<String> {
+        &self.api_key
+    }
+}
+
+pub async fn chat_inner_async(
     system_prompt: &str,
     user_input: &str,
-    max_token: u16
+    max_token: u16,
+    model: &str
 ) -> anyhow::Result<String> {
-    use serde::{ Serialize };
+    use reqwest::header::{ HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT };
 
-    #[derive(Serialize)]
-    struct Payload {
-        prompt: String,
-        n_predict: u16,
-    }
-
-    #[derive(Deserialize)]
-    struct ChatResponse {
-        content: String,
-    }
-    let client = Client::new();
-
-    let full_prompt = format!("{}{}", system_prompt, user_input);
-
-    let request_payload = Payload {
-        prompt: full_prompt,
-        n_predict: max_token,
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    headers.insert(USER_AGENT, HeaderValue::from_static("MyClient/1.0.0"));
+    let config = LocalServiceProviderConfig {
+        // api_base: String::from("http://127.0.0.1:8080/v1"),
+        // api_base: String::from("http://10.0.0.174:8080/v1"),
+        api_base: String::from("https://api.deepinfra.com/v1/openai"),
+        headers: headers,
+        api_key: Secret::new("lY2h5Vd5wgdyICzjOyDmmmToeU3KyLgv".to_string()),
+        query: HashMap::new(),
     };
 
-    let response = client
-        .post("http://127.0.0.1:8080/completion")
-        .json(&request_payload)
-        .header(header::CONTENT_TYPE, "application/json")
-        .send().await?;
+    let client = OpenAIClient::with_config(config);
+    let messages = vec![
+        ChatCompletionRequestSystemMessageArgs::default()
+            .content(system_prompt)
+            .build()
+            .expect("Failed to build system message")
+            .into(),
+        ChatCompletionRequestUserMessageArgs::default().content(user_input).build()?.into()
+    ];
+    let request = CreateChatCompletionRequestArgs::default()
+        .max_tokens(max_token)
+        .model(model)
+        .messages(messages)
+        .build()?;
 
-    if response.status().is_success() {
-        let chat_response = response.json::<ChatResponse>().await?;
-        // println!("{:?}", chat_response.content.clone());
-        Ok(chat_response.content)
-    } else {
-        Err(anyhow::anyhow!("Request failed with status: {}", response.status()))
+    let chat = match client.chat().create(request).await {
+        Ok(chat) => chat,
+        Err(_e) => {
+            println!("Error getting response from OpenAI: {:?}", _e);
+            panic!();
+        }
+    };
+
+    match chat.choices[0].message.clone().content {
+        Some(res) => {
+            // log::info!("{:?}", chat.choices[0].message.clone());
+            Ok(res)
+        }
+        None => Err(anyhow::anyhow!("Failed to get reply from OpenAI")),
     }
 }
 
@@ -258,4 +405,47 @@ pub fn parse_issue_summary_from_json(input: &str) -> anyhow::Result<Vec<(String,
         .collect::<Vec<(String, String)>>(); // Collect into a Vec of tuples
 
     Ok(summaries)
+}
+
+pub async fn test_gen() -> anyhow::Result<()> {
+    let text = include_str!("/Users/jichen/Projects/local-llm-tester/src/raw_commit.txt");
+    let raw_len = text.len();
+    let stripped_texts = text.chars().take(24_000).collect::<String>();
+    // let stripped_texts = String::from_utf8(response).ok()?.chars().take(24_000).collect::<String>();
+    let user_name = "Akihiro Suda".to_string();
+
+    let tag_line = "commit".to_string();
+
+    let sys_prompt_1 = format!(
+        "You're a GitHub data analysis bot. Analyze the following commit patch for its content and implications."
+    );
+
+    let usr_prompt_1 = format!(
+        "Examine the commit patch: {stripped_texts}, and identify the key changes and their potential impact on the project. Exclude technical specifics, code excerpts, file changes, and metadata. Highlight only those changes that substantively alter code or functionality. Provide a fact-based representation that differentiates major from minor contributions. The commit is described as: '{tag_line}'. Summarize the main changes, focusing on modifications that directly affect core functionality, and provide insight into the value or improvement the commit brings to the project."
+    );
+
+    let usr_prompt_2 = format!(
+        "Based on the analysis provided, craft a concise, non-technical summary of the key technical contributions made by {user_name} this week. The summary should be a full sentence or a short paragraph suitable for a general audience, emphasizing the contributions' significance to the project."
+    );
+
+    let summary = chain_of_chat(
+        &sys_prompt_1,
+        &usr_prompt_1,
+        "commit-99",
+        512,
+        &usr_prompt_2,
+        128,
+        "chained-prompt-commit"
+    ).await?;
+
+    println!("len: {} Summary: {:?}", raw_len, summary.clone());
+
+    use std::fs::File;
+    use std::io::Write;
+    let mut file = File::create("commits.txt").expect("create failed");
+
+    // Iterate over the map and write each entry to the file
+    // `value.0` is the URL and `value.1` is the summary in this context
+    file.write_all(summary.as_bytes()).expect("write failed");
+    Ok(())
 }
