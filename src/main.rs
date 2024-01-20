@@ -57,8 +57,8 @@ async fn main() -> anyhow::Result<()> {
 
     let client = QdrantClient::from_url("http://10.0.0.174:6334").build()?;
 
-    // let collections_list = client.list_collections().await?;
-    // dbg!(collections_list);
+    let collections_list = client.list_collections().await?;
+    dbg!(collections_list);
     // collections_list = ListCollectionsResponse {
     //     collections: [
     //         CollectionDescription {
@@ -69,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
     // }
 
     let collection_name = "k8s";
-    client.delete_collection(collection_name).await?;
+    // client.delete_collection(collection_name).await?;
 
     // client.create_collection(
     //     &(CreateCollection {
@@ -96,45 +96,75 @@ async fn main() -> anyhow::Result<()> {
 
     let text_json: Vec<Vec<String>> = serde_json::from_str(text_json).unwrap();
     let mut id = 0;
-    for line in text_json.into_iter().flatten() {
-        let mut id = 0; // Assuming `id` is initialized here and is mutable
-
+    /*     for line in text_json.into_iter().flatten() {
         match create_embed_req(&line).await {
             Ok(emb) => {
                 println!("Line: {}\n emb: {:?}", line, emb.to_vec());
 
-                let payload: Payload = json!({"text": line})
-                    .try_into()
-                    .expect("Failed to convert into Payload");
+                let payload: Payload = json!({
+                "text": line}).try_into().unwrap();
 
                 let point = PointStruct {
-                    id: Some(id.into()), // Make sure `id` is mutable and defined outside of this closure
+                    id: Some(id.into()),
                     payload: payload.into(),
                     vectors: Some(emb.into()),
                     ..Default::default()
                 };
+                // let point = PointStruct {
+                //     id: Some(PointId {
+                //         point_id_options: Some(PointIdOptions::Num(id)),
+                //     }),
+                //     payload: json!(
+                //         {
+                //             "text": line
+                //         }
+                //     )
+                //         .as_object()
+                //         .map(|m| m.to_owned())
+                //         .unwrap(),
+                //     vectors: Vector {
+                //         data: emb,
+                //     },
+                // };
+                client.upsert_points_blocking(collection_name, None, vec![point], None).await?;
 
-                id += 1; // Increment `id` for the next iteration
-                client.upsert_points(collection_name, None, vec![point], None).await?;
+                id += 1;
             }
             Err(e) => {
-                println!("Error processing line: {}", e);
+                println!("OpenAI returned an error: {}", e);
             }
         }
+    } */
 
-        break;
+    let question = "What is the meaning of kubernetes?";
+    let question = "What are the charcteristic of kubernetes?";
+
+    match create_embed_req(question).await {
+        Ok(query_emb) => {
+            // println!("Question: {}\n emb: {:?}", question, query_emb.to_vec());
+            let search_result = client.search_points(
+                &(SearchPoints {
+                    collection_name: collection_name.into(),
+                    vector: query_emb,
+                    filter: None,
+                    // filter: Some(Filter::all([Condition::matches("bar", 12)])),
+                    limit: 5,
+                    with_payload: Some(true.into()),
+                    ..Default::default()
+                })
+            ).await?;
+            for reslt in search_result.result.into_iter() {
+                if let payload = reslt.payload {
+                    for (key, val) in payload {
+                        println!("{}: {:?}", key, val);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            println!("OpenAI returned an error: {}", e);
+        }
     }
-
-    /*     let search_result = client.search_points(
-        &(SearchPoints {
-            collection_name: collection_name.into(),
-            vector: vec![11.; 10],
-            filter: Some(Filter::all([Condition::matches("bar", 12)])),
-            limit: 10,
-            with_payload: Some(true.into()),
-            ..Default::default()
-        })
-    ).await?; */
 
     // search_result = SearchResponse {
     //     result: [
@@ -172,9 +202,5 @@ async fn main() -> anyhow::Result<()> {
     //     time: 9.5394e-5,
     // }
 
-    // let found_point = search_result.result.into_iter().next().unwrap();
-    // let mut payload = found_point.payload;
-    // let baz_payload = payload.remove("baz").unwrap().into_json();
-    // println!("baz: {}", baz_payload);
     Ok(())
 }
