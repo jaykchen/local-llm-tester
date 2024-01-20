@@ -1,96 +1,31 @@
-use reqwest::{ Client, header };
-use http_req::{ request::Method, request::Request, response, uri::Uri };
+use http_req::{request::Method, request::Request, response, uri::Uri};
 use log;
-use serde::Deserialize;
+use reqwest::header::{HeaderMap, AUTHORIZATION};
+use reqwest::{header, Client};
+use secrecy::{ExposeSecret, Secret};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashSet;
-use reqwest::header::{ HeaderMap, AUTHORIZATION };
-use secrecy::{ ExposeSecret, Secret };
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use async_openai::{
     config::Config,
     types::{
-        Embedding,
         // ChatCompletionFunctionsArgs, ChatCompletionRequestMessage,
         ChatCompletionRequestSystemMessageArgs,
         ChatCompletionRequestUserMessageArgs,
         // ChatCompletionTool, ChatCompletionToolArgs, ChatCompletionToolType,
         CreateChatCompletionRequestArgs,
+        CreateEmbeddingRequest,
         // FinishReason,
         CreateEmbeddingRequestArgs,
         CreateEmbeddingResponse,
-        CreateEmbeddingRequest,
-        OpenAIError,
+        Embedding,
+        EmbeddingUsage,
     },
-    Models,
-    Client as OpenAIClient,
+    Client as OpenAIClient, Models,
 };
 use std::env;
-
-pub struct CustomEmbeddings<'c, C: Config> {
-    client: &'c OpenAIClient<C>,
-}
-
-impl<'c, C: Config> CustomEmbeddings<'c, C> {
-    pub fn new(client: &'c OpenAIClient<C>) -> Self {
-        Self { client }
-    }
-
-    /// Creates an embedding vector representing the input text using the base URL.
-    pub async fn create(
-        &self,
-        request: CreateEmbeddingRequest
-    ) -> Result<CreateEmbeddingResponse, OpenAIError> {
-        // Use the base URL only without appending "/embeddings"
-        // self.client.post("", request).await
- let request_maker = self
-            .client
-            .post(self.config.url(path))
-            .query(&self.config.query())
-            .headers(self.config.headers())
-            .json(&request)
-            .build()?;
-
-    self.execute(request_maker).await    }
-}
-
-
-
-// Usage in your `create_embed` function:
-pub async fn create_embed(input: &str) -> anyhow::Result<Vec<f32>> {
-    use reqwest::header::{ HeaderValue, CONTENT_TYPE, USER_AGENT };
-    let token = env::var("DEEP_API_KEY").unwrap_or(String::from("DEEP_API_KEY-must-be-set"));
-    let mut headers = HeaderMap::new();
-    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-    headers.insert(USER_AGENT, HeaderValue::from_static("MyClient/1.0.0"));
-    let config = LocalServiceProviderConfig {
-        api_base: String::from("http://52.37.228.1:80/embed"),
-        headers: headers,
-        api_key: Secret::new(token),
-        query: HashMap::new(),
-    };
-
-    let client = OpenAIClient::with_config(config);
-
-    // Use CustomEmbeddings instead of the library's Embeddings
-    let custom_embeddings = CustomEmbeddings::new(&client);
-
-    // Create a request as before
-    let request = CreateEmbeddingRequestArgs::default()
-        .model("BAAI/bge-large-en-v1.5")
-        .input(input)
-        .build()
-        .unwrap();
-
-    match custom_embeddings.create(request).await {
-        Ok(response) => Ok(response.data.get(0).unwrap().embedding.clone()),
-        Err(_e) => {
-            println!("Error getting response from hosted LLM: {:?}", _e);
-            Err(anyhow::Error::msg("{_e}".to_string()))
-        }
-    }
-}
 
 pub fn squeeze_fit_remove_quoted(inp_str: &str, max_len: u16, split: f32) -> String {
     let mut body = String::new();
@@ -125,7 +60,11 @@ pub fn squeeze_fit_remove_quoted(inp_str: &str, max_len: u16, split: f32) -> Str
         body_len
     };
 
-    let drain_end = if n_keep_till_end <= body_len { body_len - n_keep_till_end } else { 0 };
+    let drain_end = if n_keep_till_end <= body_len {
+        body_len - n_keep_till_end
+    } else {
+        0
+    };
 
     let final_text = if body_len > (max_len as usize) {
         let mut body_text_vec = body_words.to_vec();
@@ -173,9 +112,9 @@ pub async fn chain_of_chat(
     gen_len_1: u16,
     usr_prompt_2: &str,
     gen_len_2: u16,
-    error_tag: &str
+    error_tag: &str,
 ) -> anyhow::Result<String> {
-    use reqwest::header::{ HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT };
+    use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT};
 
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -198,7 +137,10 @@ pub async fn chain_of_chat(
             .build()
             .expect("Failed to build system message")
             .into(),
-        ChatCompletionRequestUserMessageArgs::default().content(usr_prompt_1).build()?.into()
+        ChatCompletionRequestUserMessageArgs::default()
+            .content(usr_prompt_1)
+            .build()?
+            .into(),
     ];
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(gen_len_1)
@@ -220,7 +162,10 @@ pub async fn chain_of_chat(
     }
 
     messages.push(
-        ChatCompletionRequestUserMessageArgs::default().content(usr_prompt_2).build()?.into()
+        ChatCompletionRequestUserMessageArgs::default()
+            .content(usr_prompt_2)
+            .build()?
+            .into(),
     );
 
     let request = CreateChatCompletionRequestArgs::default()
@@ -279,9 +224,9 @@ pub async fn chat_inner_async(
     system_prompt: &str,
     user_input: &str,
     max_token: u16,
-    model: &str
+    model: &str,
 ) -> anyhow::Result<String> {
-    use reqwest::header::{ HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT };
+    use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT};
 
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -302,7 +247,10 @@ pub async fn chat_inner_async(
             .build()
             .expect("Failed to build system message")
             .into(),
-        ChatCompletionRequestUserMessageArgs::default().content(user_input).build()?.into()
+        ChatCompletionRequestUserMessageArgs::default()
+            .content(user_input)
+            .build()?
+            .into(),
     ];
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(max_token)
@@ -367,14 +315,13 @@ pub async fn github_http_get(url: &str) -> anyhow::Result<Vec<u8>> {
     let mut writer = Vec::new();
     let url = Uri::try_from(url).unwrap();
 
-    match
-        Request::new(&url)
-            .method(Method::GET)
-            .header("User-Agent", "flows-network connector")
-            .header("Content-Type", "application/json")
-            .header("Authorization", &format!("Bearer {}", token))
-            .header("CONNECTION", "close")
-            .send(&mut writer)
+    match Request::new(&url)
+        .method(Method::GET)
+        .header("User-Agent", "flows-network connector")
+        .header("Content-Type", "application/json")
+        .header("Authorization", &format!("Bearer {}", token))
+        .header("CONNECTION", "close")
+        .send(&mut writer)
     {
         Ok(res) => {
             if !res.status_code().is_success() {
@@ -435,8 +382,9 @@ pub async fn test_gen() -> anyhow::Result<()> {
         512,
         &usr_prompt_2,
         128,
-        "chained-prompt-commit"
-    ).await?;
+        "chained-prompt-commit",
+    )
+    .await?;
 
     println!("len: {} Summary: {:?}", raw_len, summary.clone());
 

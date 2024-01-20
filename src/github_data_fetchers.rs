@@ -1,12 +1,12 @@
-use crate::{ utils::* };
+use crate::utils::*;
 use anyhow::anyhow;
-use chrono::{ DateTime, Duration, NaiveDate, Utc };
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 use derivative::Derivative;
-use http_req::response::{ self, Response };
-use octocrab::models::{ issues::Comment, issues::Issue, Repository };
+use http_req::response::{self, Response};
+use octocrab::models::{issues::Comment, issues::Issue, Repository};
 use octocrab::Octocrab;
 
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 use serde_json;
 
 #[derive(Derivative, Serialize, Deserialize, Debug, Clone)]
@@ -36,9 +36,8 @@ pub async fn get_community_profile_data(owner: &str, repo: &str) -> Option<Strin
         // documentation: Option<String>,
     }
 
-    let community_profile_url = format!(
-        "https://api.github.com/repos/{owner}/{repo}/community/profile"
-    );
+    let community_profile_url =
+        format!("https://api.github.com/repos/{owner}/{repo}/community/profile");
 
     let token = std::env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN env variable is required");
     let octocrab = Octocrab::builder()
@@ -46,7 +45,10 @@ pub async fn get_community_profile_data(owner: &str, repo: &str) -> Option<Strin
         .build()
         .expect("octocrab failed to build");
 
-    match octocrab.get::<CommunityProfile, _, ()>(&community_profile_url, None::<&()>).await {
+    match octocrab
+        .get::<CommunityProfile, _, ()>(&community_profile_url, None::<&()>)
+        .await
+    {
         Ok(profile) => {
             return Some(format!("Description: {}", profile.description));
         }
@@ -74,7 +76,10 @@ pub async fn get_contributors(owner: &str, repo: &str) -> Result<Vec<String>, oc
             "https://api.github.com/repos/{owner}/{repo}/contributors?per_page=100&page={n}"
         );
 
-        match octocrab.get::<Vec<GithubUser>, _, ()>(&contributors_route, None::<&()>).await {
+        match octocrab
+            .get::<Vec<GithubUser>, _, ()>(&contributors_route, None::<&()>)
+            .await
+        {
             Ok(user_vec) => {
                 if user_vec.is_empty() {
                     break 'outer;
@@ -110,21 +115,23 @@ pub async fn get_readme(owner: &str, repo: &str) -> Option<String> {
         .build()
         .expect("octocrab failed to build");
 
-    match octocrab.get::<GithubReadme, _, ()>(&readme_url, None::<&()>).await {
+    match octocrab
+        .get::<GithubReadme, _, ()>(&readme_url, None::<&()>)
+        .await
+    {
         Ok(readme) => {
             if let Some(c) = readme.content {
                 let cleaned_content = c.replace("\n", "");
                 match base64::decode(&cleaned_content) {
-                    Ok(decoded_content) =>
-                        match String::from_utf8(decoded_content) {
-                            Ok(out) => {
-                                return Some(format!("Readme: {}", out));
-                            }
-                            Err(e) => {
-                                println!("Failed to convert cleaned readme to String: {:?}", e);
-                                return None;
-                            }
+                    Ok(decoded_content) => match String::from_utf8(decoded_content) {
+                        Ok(out) => {
+                            return Some(format!("Readme: {}", out));
                         }
+                        Err(e) => {
+                            println!("Failed to convert cleaned readme to String: {:?}", e);
+                            return None;
+                        }
+                    },
                     Err(e) => {
                         println!("Error decoding base64 content: {:?}", e);
                         None
@@ -147,7 +154,7 @@ pub async fn get_issues_in_range(
     repo: &str,
     user_name: Option<String>,
     range: u16,
-    token: Option<String>
+    token: Option<String>,
 ) -> Option<(usize, Vec<Issue>)> {
     #[derive(Debug, Deserialize)]
     struct Page<T> {
@@ -167,8 +174,10 @@ pub async fn get_issues_in_range(
         None => String::new(),
         Some(t) => format!("&token={}", t.as_str()),
     };
-    let url_str =
-        format!("https://api.github.com/search/issues?q={}&sort=updated&order=desc&per_page=100{token_str}", encoded_query);
+    let url_str = format!(
+        "https://api.github.com/search/issues?q={}&sort=updated&order=desc&per_page=100{token_str}",
+        encoded_query
+    );
     // let url_str = format!(
     //     "https://api.github.com/search/issues?q={}&sort=updated&order=desc&per_page=100{token_str}",
     //     encoded_query
@@ -181,7 +190,10 @@ pub async fn get_issues_in_range(
         .build()
         .expect("octocrab failed to build");
 
-    match octocrab.get::<Page<Issue>, _, ()>(&url_str, None::<&()>).await {
+    match octocrab
+        .get::<Page<Issue>, _, ()>(&url_str, None::<&()>)
+        .await
+    {
         Err(e) => {
             println!("error: {:?}", e);
         }
@@ -202,7 +214,8 @@ pub async fn get_issue_texts(issue: &Issue) -> Option<String> {
     };
     let issue_url = &issue.url.to_string();
 
-    let labels = issue.labels
+    let labels = issue
+        .labels
         .iter()
         .map(|lab| lab.name.clone())
         .collect::<Vec<String>>()
@@ -210,10 +223,7 @@ pub async fn get_issue_texts(issue: &Issue) -> Option<String> {
 
     let mut all_text_from_issue = format!(
         "User '{}', opened an issue titled '{}', labeled '{}', with the following post: '{}'.",
-        issue_creator_name,
-        issue_title,
-        labels,
-        issue_body
+        issue_creator_name, issue_title, labels, issue_body
     );
 
     let mut current_page = 1;
@@ -226,9 +236,15 @@ pub async fn get_issue_texts(issue: &Issue) -> Option<String> {
             .build()
             .expect("octocrab failed to build");
 
-        match octocrab.get::<Vec<Comment>, _, ()>(&url_str, None::<&()>).await {
+        match octocrab
+            .get::<Vec<Comment>, _, ()>(&url_str, None::<&()>)
+            .await
+        {
             Err(_e) => {
-                println!("Error parsing Vec<Comment> at page {}: {:?}", current_page, _e);
+                println!(
+                    "Error parsing Vec<Comment> at page {}: {:?}",
+                    current_page, _e
+                );
                 break;
             }
             Ok(comments_obj) => {
@@ -260,7 +276,7 @@ pub async fn get_commits_in_range_search(
     owner: &str,
     repo: &str,
     user_name: Option<String>,
-    range: u16
+    range: u16,
 ) -> Option<(usize, Vec<GitMemory>)> {
     #[derive(Debug, Deserialize)]
     struct Page<T> {
@@ -294,7 +310,10 @@ pub async fn get_commits_in_range_search(
     let now = Utc::now();
     let n_days_ago = (now - Duration::days(range as i64)).date_naive();
 
-    let query = format!("repo:{}/{} {} committer-date:>{}", owner, repo, author_str, n_days_ago);
+    let query = format!(
+        "repo:{}/{} {} committer-date:>{}",
+        owner, repo, author_str, n_days_ago
+    );
 
     // let query = format!("repo:{}/{}{}", owner, repo, author_str);
     let encoded_query = urlencoding::encode(&query);
@@ -305,16 +324,21 @@ pub async fn get_commits_in_range_search(
         .build()
         .expect("octocrab failed to build");
 
-    let url_str =
-        format!("https://api.github.com/search/commits?q={}&sort=committer-date&order=desc&per_page=100", encoded_query);
+    let url_str = format!(
+        "https://api.github.com/search/commits?q={}&sort=committer-date&order=desc&per_page=100",
+        encoded_query
+    );
     // println!("url_str: {}", url_str);
 
     // let url_str = format!(
     //     "https://api.github.com/repos/wasmedge/wasmedge/commits?q=author:hydai%20committer-date:>2024-01-04&author=hydai&sort=desc&per_page=100"
     // );
-    use hyper::http::{ HeaderMap, HeaderValue, Method, Uri };
+    use hyper::http::{HeaderMap, HeaderValue, Method, Uri};
 
-    match octocrab.get::<Page<GithubCommit>, _, ()>(&url_str, None::<&()>).await {
+    match octocrab
+        .get::<Page<GithubCommit>, _, ()>(&url_str, None::<&()>)
+        .await
+    {
         Err(e) => {
             println!("Error parsing commits: {:?}", e);
         }
@@ -331,8 +355,7 @@ pub async fn get_commits_in_range_search(
                     });
                 }
             }
-            if &commits_page.items.len() < &100 {
-            }
+            if &commits_page.items.len() < &100 {}
         }
     }
     let count = git_memory_vec.len();

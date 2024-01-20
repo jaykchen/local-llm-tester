@@ -1,16 +1,16 @@
 use crate::github_data_fetchers::*;
 use crate::utils::*;
 // use async_openai::types::FinishReason;
-use chrono::{ DateTime, Utc };
+use chrono::{DateTime, Utc};
 use log;
-use octocrab::models::{ issues::Comment, issues::Issue };
+use octocrab::models::{issues::Comment, issues::Issue};
 use octocrab::Octocrab;
 use serde::Deserialize;
-use std::collections::{ HashMap, HashSet };
+use std::collections::{HashMap, HashSet};
 
 pub async fn is_valid_owner_repo(
     owner: &str,
-    repo: &str
+    repo: &str,
 ) -> anyhow::Result<(String, String, HashSet<String>)> {
     #[derive(Deserialize)]
     struct CommunityProfile {
@@ -28,8 +28,7 @@ pub async fn is_valid_owner_repo(
     }
     let community_profile_url = format!(
         "https://api.github.com/repos/{}/{}/community/profile",
-        owner,
-        repo
+        owner, repo
     );
 
     let description;
@@ -40,18 +39,31 @@ pub async fn is_valid_owner_repo(
         .build()
         .expect("octocrab failed to build");
 
-    match octocrab.get::<CommunityProfile, _, ()>(&community_profile_url, None::<&()>).await {
+    match octocrab
+        .get::<CommunityProfile, _, ()>(&community_profile_url, None::<&()>)
+        .await
+    {
         Ok(profile) => {
-            description = profile.description.as_ref().unwrap_or(&String::from("")).to_string();
+            description = profile
+                .description
+                .as_ref()
+                .unwrap_or(&String::from(""))
+                .to_string();
 
-            has_readme = profile.files.readme
+            has_readme = profile
+                .files
+                .readme
                 .as_ref()
                 .unwrap_or(&(Readme { url: None }))
-                .url.is_some();
+                .url
+                .is_some();
         }
         Err(e) => {
             println!("Error parsing Community Profile: {:?}", e);
-            return Err(anyhow::anyhow!("no Community Profile, so invalid owner/repo: {:?}", e));
+            return Err(anyhow::anyhow!(
+                "no Community Profile, so invalid owner/repo: {:?}",
+                e
+            ));
         }
     }
 
@@ -95,7 +107,14 @@ pub async fn analyze_readme(content: &str) -> Option<String> {
         "Based on the profile and README provided: {content}, extract a concise summary detailing this project's factual significance in its domain, their areas of expertise, and the main features and goals of the project. Ensure the insights are objective and under 110 tokens."
     );
 
-    match chat_inner_async(sys_prompt_1, usr_prompt_1, 256, "mistralai/Mistral-7B-Instruct-v0.1").await {
+    match chat_inner_async(
+        sys_prompt_1,
+        usr_prompt_1,
+        256,
+        "mistralai/Mistral-7B-Instruct-v0.1",
+    )
+    .await
+    {
         Ok(r) => {
             return Some(r);
         }
@@ -110,7 +129,7 @@ pub async fn process_issues(
     inp_vec: Vec<Issue>,
     target_person: Option<String>,
     contributors_set: HashSet<String>,
-    token: Option<String>
+    token: Option<String>,
 ) -> anyhow::Result<HashMap<String, (String, String)>> {
     use futures::future::join_all;
 
@@ -121,12 +140,9 @@ pub async fn process_issues(
             let token = token.clone();
             let contributors_set = contributors_set.clone();
             async move {
-                let ve = analyze_issue_integrated(
-                    &issue,
-                    target_person,
-                    contributors_set,
-                    token
-                ).await.ok()?;
+                let ve = analyze_issue_integrated(&issue, target_person, contributors_set, token)
+                    .await
+                    .ok()?;
                 Some(ve)
             }
         })
@@ -167,7 +183,7 @@ pub async fn analyze_issue_integrated(
     issue: &Issue,
     target_person: Option<String>,
     contributors_set: HashSet<String>,
-    token: Option<String>
+    token: Option<String>,
 ) -> anyhow::Result<Vec<(String, String, String)>> {
     let issue_creator_name = &issue.user.login;
     let issue_title = issue.title.to_string();
@@ -180,7 +196,8 @@ pub async fn analyze_issue_integrated(
     let issue_url = issue.url.to_string();
     let source_url = issue.html_url.to_string();
 
-    let labels = issue.labels
+    let labels = issue
+        .labels
         .iter()
         .map(|lab| lab.name.clone())
         .collect::<Vec<String>>()
@@ -188,10 +205,7 @@ pub async fn analyze_issue_integrated(
 
     let mut all_text_from_issue = format!(
         "User '{}', opened an issue titled '{}', labeled '{}', with the following post: '{}'.",
-        issue_creator_name,
-        issue_title,
-        labels,
-        issue_body
+        issue_creator_name, issue_title, labels, issue_body
     );
 
     let token_str = match token {
@@ -206,8 +220,7 @@ pub async fn analyze_issue_integrated(
     // );
     let comments_url = format!(
         "{}/comments?sort=updated&order=desc&per_page=100{}",
-        issue_url,
-        token_str
+        issue_url, token_str
     );
     // let octocrab = get_octo(&GithubLogin::Default);
 
@@ -238,7 +251,8 @@ pub async fn analyze_issue_integrated(
         "Given the information that user '{issue_creator_name}' opened an issue titled '{issue_title}', your task is to deeply analyze the content of the issue posts. Distill the crux of the issue, the potential solutions suggested, and evaluate the significant contributions of the participants in resolving or progressing the discussion."
     );
 
-    let commenters_to_watch_str = if !target_str.is_empty() || issue_commenters_to_watch.len() == 0 {
+    let commenters_to_watch_str = if !target_str.is_empty() || issue_commenters_to_watch.len() == 0
+    {
         target_str
     } else {
         issue_commenters_to_watch.join(", ")
@@ -263,7 +277,14 @@ pub async fn analyze_issue_integrated(
         commenters_to_watch_str
     );
 
-    match chat_inner_async(sys_prompt_1, usr_prompt_1, 128, "mistralai/Mistral-7B-Instruct-v0.1").await {
+    match chat_inner_async(
+        sys_prompt_1,
+        usr_prompt_1,
+        128,
+        "mistralai/Mistral-7B-Instruct-v0.1",
+    )
+    .await
+    {
         Ok(r) => {
             let parsed = parse_issue_summary_from_json(&r)
                 .ok()
@@ -271,7 +292,7 @@ pub async fn analyze_issue_integrated(
 
             let out = parsed
                 .into_iter()
-                .map(|(user_name, summary)| { (user_name, source_url.clone(), summary) })
+                .map(|(user_name, summary)| (user_name, source_url.clone(), summary))
                 .collect::<Vec<(String, String, String)>>();
 
             Ok(out)
@@ -290,7 +311,11 @@ pub async fn analyze_issue_integrated(
         }
         Err(_e) => {
             println!("Error generating issue summary #{}: {}", issue_number, _e);
-            Err(anyhow::anyhow!("Error generating issue summary #{}: {}", issue_number, _e))
+            Err(anyhow::anyhow!(
+                "Error generating issue summary #{}: {}",
+                issue_number,
+                _e
+            ))
         }
     }
 }
@@ -301,9 +326,9 @@ pub async fn analyze_commit_integrated(
     url: &str,
     _turbo: bool,
     is_sparce: bool,
-    token: Option<String>
+    token: Option<String>,
 ) -> anyhow::Result<String> {
-    use reqwest::header::{ HeaderMap, HeaderValue, AUTHORIZATION, USER_AGENT };
+    use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, USER_AGENT};
     let token_str = match token {
         None => String::new(),
         Some(t) => format!("&token={}", t.as_str()),
@@ -322,7 +347,10 @@ pub async fn analyze_commit_integrated(
 
     // Create a header map and add the `Authorization` and `User-Agent` headers
     let mut headers = HeaderMap::new();
-    headers.insert(AUTHORIZATION, HeaderValue::from_str(&format!("token {}", token))?);
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("token {}", token))?,
+    );
     // headers.insert(
     //     USER_AGENT,
     //     HeaderValue::from_static("my-awesome-github-app"),
@@ -333,12 +361,16 @@ pub async fn analyze_commit_integrated(
 
     // Check the response status code
     if !response.status().is_success() {
-        return Err(anyhow::anyhow!("Request failed with status: {}", response.status()));
+        return Err(anyhow::anyhow!(
+            "Request failed with status: {}",
+            response.status()
+        ));
     }
 
     // Read the response text
     let text = response
-        .text().await
+        .text()
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to read response text: {}", e))?;
 
     // println!("{:?}", text.clone()); // let mut stripped_texts = String::with_capacity(text.len());
@@ -393,7 +425,11 @@ pub async fn analyze_commit_integrated(
     );
 
     let stripped_texts = if !is_sparce {
-        let stripped_texts = text.splitn(2, "diff --git").nth(0).unwrap_or("").to_string();
+        let stripped_texts = text
+            .splitn(2, "diff --git")
+            .nth(0)
+            .unwrap_or("")
+            .to_string();
 
         let stripped_texts = squeeze_fit_remove_quoted(&stripped_texts, 5_000, 1.0);
         squeeze_fit_post_texts(&stripped_texts, 3_000, 0.6)
@@ -417,21 +453,32 @@ pub async fn analyze_commit_integrated(
         Some(s) => s.chars().take(5).collect::<String>(),
         None => "0000".to_string(),
     };
-    match chat_inner_async(sys_prompt_1, usr_prompt_1, 128, "mistralai/Mistral-7B-Instruct-v0.1").await {
+    match chat_inner_async(
+        sys_prompt_1,
+        usr_prompt_1,
+        128,
+        "mistralai/Mistral-7B-Instruct-v0.1",
+    )
+    .await
+    {
         Ok(r) => {
             let out = format!("{} {}", url, r);
             Ok(out)
         }
         Err(_e) => {
             println!("Error generating issue summary #{}: {}", sha_serial, _e);
-            Err(anyhow::anyhow!("Error generating issue summary #{}: {}", sha_serial, _e))
+            Err(anyhow::anyhow!(
+                "Error generating issue summary #{}: {}",
+                sha_serial,
+                _e
+            ))
         }
     }
 }
 
 pub async fn process_commits(
     inp_vec: Vec<GitMemory>,
-    commits_map: &mut HashMap<String, (String, String)>
+    commits_map: &mut HashMap<String, (String, String)>,
 ) -> anyhow::Result<()> {
     use futures::future::join_all;
 
@@ -460,7 +507,6 @@ pub async fn process_commits(
             "Based on the analysis provided, craft a concise, non-technical summary of the key technical contributions made by {user_name} this week. The summary should be a full sentence or a short paragraph suitable for a general audience, emphasizing the contributions' significance to the project."
         );
 
-
         let summary = chain_of_chat(
             &sys_prompt_1,
             &usr_prompt_1,
@@ -468,9 +514,15 @@ pub async fn process_commits(
             512,
             &usr_prompt_2,
             128,
-            "chained-prompt-commit"
-        ).await?;
-        println!("Commit: {:?}\n len: {} Summary: {:?}", url, raw_len, summary.clone());
+            "chained-prompt-commit",
+        )
+        .await?;
+        println!(
+            "Commit: {:?}\n len: {} Summary: {:?}",
+            url,
+            raw_len,
+            summary.clone()
+        );
         results.push((commit_obj.name, commit_obj.source_url, summary));
     }
 
