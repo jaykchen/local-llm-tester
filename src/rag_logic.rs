@@ -70,7 +70,7 @@ pub async fn populate_collection(
     collection_name: &str
 ) {
     let mut id = 0;
-    for line in chunk_json_vec(text_json, 2000) {
+    for line in chunk_json_vec(text_json, 2000).await {
         match create_embed_req(&line).await {
             Ok(emb) => {
                 println!("Block embed processed: {}", line.chars().take(20).collect::<String>());
@@ -132,12 +132,14 @@ pub async fn search_collection(
     collection_name: &str
 ) -> anyhow::Result<Vec<(u64, f32, String)>> {
     let query_emb = create_embed_req(question).await?;
+    println!("query_emb.len(): {}", query_emb.len());
     let search_result = client.search_points(
         &(SearchPoints {
             collection_name: collection_name.into(),
             vector: query_emb,
             filter: None,
             // filter: Some(Filter::all([Condition::matches("bar", 12)])),
+            with_payload: Some(true.into()),
             limit: 5,
             ..Default::default()
         })
@@ -152,6 +154,8 @@ pub async fn search_collection(
             continue;
         };
         let score = res.score;
+        // println!("{:?}", score.clone());
+        // println!("{:?}", res.payload);
         let payload_str = match res.payload.get("text") {
             Some(payload) => payload.as_str().unwrap().to_string(),
 

@@ -4,18 +4,18 @@
 // use reqwest::{ header, Client };
 use crate::llm::chat_inner_async;
 
-pub fn chunk_json_vec(json_vec: Vec<Vec<String>>, chunk_size: usize) -> Vec<String> {
+pub async fn chunk_json_vec(json_vec: Vec<Vec<String>>, chunk_size: usize) -> Vec<String> {
     let mut out = Vec::new();
 
     for ve in json_vec {
         let mut current_chunk = String::new();
-        for line in ve {
+        for line in &ve {
             if current_chunk.is_empty() {
                 current_chunk.push_str(&line);
             } else {
                 if current_chunk.len() + line.len() + 1 > chunk_size {
                     out.push(current_chunk);
-                    current_chunk = line;
+                    current_chunk = line.to_string();
                 } else {
                     current_chunk.push('\n');
                     current_chunk.push_str(&line);
@@ -24,6 +24,10 @@ pub fn chunk_json_vec(json_vec: Vec<Vec<String>>, chunk_size: usize) -> Vec<Stri
         }
         if !current_chunk.is_empty() {
             out.push(current_chunk);
+        }
+        if ve.join("\n").len() > chunk_size {
+            let summary = summarize_long_chunks(&ve.join("\n")).await;
+            out.push(summary);
         }
     }
 
@@ -38,8 +42,5 @@ pub async fn summarize_long_chunks(input: &str) -> String {
     );
     let model = "mistralai/Mistral-7B-Instruct-v0.1";
 
-    chat_inner_async(&sys_prompt_1, &usr_prompt_1, 128, model)
-        .await
-        .ok()
-        .unwrap_or(String::new())
+    chat_inner_async(&sys_prompt_1, &usr_prompt_1, 128, model).await.ok().unwrap_or(String::new())
 }

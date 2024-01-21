@@ -1,4 +1,4 @@
-use clap::{ App, Arg };
+use clap::{App, Arg};
 use dotenv::dotenv;
 use local_llm_tester::embed::*;
 use local_llm_tester::preprocess::*;
@@ -40,9 +40,9 @@ async fn main() -> anyhow::Result<()> {
 
     let collection_name = "k8s";
 
-    // let _ = create_collection(embedding_dims, &client, collection_name).await;
-
     // client.delete_collection(collection_name).await?;
+
+    // let _ = create_collection(1024, &client, collection_name).await;
 
     // let collection_info = client.collection_info(collection_name).await?;
     // dbg!(collection_info);
@@ -63,10 +63,10 @@ async fn main() -> anyhow::Result<()> {
 
     println!("original_texts_pulled: {:?}", original_texts_pulled);
     let hypo_texts_pulled = search_collection(&hypo_answer, &client, collection_name).await?;
-println!("hypo_texts_pulled: {:?}", hypo_texts_pulled);
+    println!("hypo_texts_pulled: {:?}", hypo_texts_pulled);
 
     let context_text = pooling_candidate_texts(original_texts_pulled, hypo_texts_pulled, 20_000);
-
+    println!("context_text: {:?}", context_text);
     let system_prompt = format!("You're a question & answer bot on a specified source material.");
 
     let user_input = format!(
