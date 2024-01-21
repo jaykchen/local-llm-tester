@@ -1,29 +1,22 @@
-use http_req::{request::Method, request::Request, response, uri::Uri};
-use log;
-use reqwest::header::{HeaderMap, AUTHORIZATION};
-use reqwest::{header, Client};
-use secrecy::{ExposeSecret, Secret};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use http_req::{request::Method, uri::Uri};
+// use log;
+use reqwest::header::HeaderMap;
+use secrecy::{
+    // ExposeSecret,
+    Secret,
+};
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 use async_openai::{
     config::Config,
     types::{
-        // ChatCompletionFunctionsArgs, ChatCompletionRequestMessage,
-        ChatCompletionRequestSystemMessageArgs,
-        ChatCompletionRequestUserMessageArgs,
-        // ChatCompletionTool, ChatCompletionToolArgs, ChatCompletionToolType,
-        CreateChatCompletionRequestArgs,
-        CreateEmbeddingRequest,
-        // FinishReason,
+        // CreateEmbeddingRequest,
         CreateEmbeddingRequestArgs,
         CreateEmbeddingResponse,
-        Embedding,
-        EmbeddingUsage,
+        // Embedding,
+        // EmbeddingUsage,
     },
-    Client as OpenAIClient, Models,
+    Client as OpenAIClient,
 };
 use std::env;
 

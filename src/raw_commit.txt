@@ -350,14 +350,14 @@ index 00000000000..10cd68579b7
 +
 +  uint32_t call(std::initializer_list<WasmEdge::ValVariant> Args) {
 +    if (FuncInst == nullptr) {
-+      spdlog::error(
++      spdprintln(
 +          "[WASI-NN-RPCSERVER] HostFuncCaller: FuncInst not found for {}"sv,
 +          FuncName);
 +      return 0xFFFFFFFF;
 +    }
 +    std::array<ValVariant, 1> Rets = {UINT32_C(0)};
 +    if (!FuncInst->getHostFunc().run(Frame, Args, Rets)) {
-+      spdlog::error(
++      spdprintln(
 +          "[WASI-NN-RPCSERVER] HostFuncCaller: failed to run HostFunc for {}"sv,
 +          FuncName);
 +      return 0xFFFFFFFF;
@@ -703,15 +703,15 @@ index 00000000000..a760f06d967
 +
 +void loadPlugins(void) {
 +  for (const auto &Path : Plugin::Plugin::getDefaultPluginPaths()) {
-+    spdlog::info("Loading plugin path {}"sv, Path);
++    spdprintln("Loading plugin path {}"sv, Path);
 +    if (Plugin::Plugin::load(Path)) {
-+      spdlog::info("Loaded plugin path {}"sv, Path);
++      spdprintln("Loaded plugin path {}"sv, Path);
 +    } else {
-+      spdlog::info("Nothing was loaded from plugin path {}"sv, Path);
++      spdprintln("Nothing was loaded from plugin path {}"sv, Path);
 +    }
 +  }
 +  for (const auto &Plugin : Plugin::Plugin::plugins()) {
-+    spdlog::info("Plugin: {}", Plugin.name());
++    spdprintln("Plugin: {}", Plugin.name());
 +  }
 +}
 +
@@ -745,14 +745,14 @@ index 00000000000..a760f06d967
 +  }
 +  auto URI = NNRPCURI.value();
 +  if (URI.empty()) {
-+    spdlog::error("--nn-rpc-uri has to be specified"sv);
++    spdprintln("--nn-rpc-uri has to be specified"sv);
 +    return EXIT_FAILURE;
 +  }
 +
 +  // Create the wasi_nn module
 +  auto *NNMod = createWasiNNModule();
 +  if (NNMod == nullptr) {
-+    spdlog::error(
++    spdprintln(
 +        "Failed to get the wasi_nn module (Hint: set $WASMEDGE_PLUGIN_PATH to "
 +        "the directory where libwasmedgePluginWasiNN.* exists"sv);
 +    return EXIT_FAILURE;
@@ -763,7 +763,7 @@ index 00000000000..a760f06d967
 +
 +  // Create the gRPC server
 +  grpc::ServerBuilder Builder;
-+  spdlog::info("Listening on \"{}\""sv, URI);
++  spdprintln("Listening on \"{}\""sv, URI);
 +  std::string_view UnixPrefix = "unix://";
 +  if (URI.substr(0, UnixPrefix.length()) != UnixPrefix) {
 +    spdlog::warn("Expected \"unix://...\", got \"{}\""sv, URI);
@@ -1070,7 +1070,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +#ifdef WASMEDGE_BUILD_WASI_NN_RPC
 +  if (Env.NNRPCChannel != nullptr) {
 +    // TODO: implement RPC for Load
-+    spdlog::error("[WASI-NN] RPC client is not implemented for Load"sv);
++    spdprintln("[WASI-NN] RPC client is not implemented for Load"sv);
 +    return WASINN::ErrNo::UnsupportedOperation;
 +  }
 +#endif
@@ -1091,7 +1091,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +    wasi_ephemeral_nn::LoadByNameResult Res;
 +    auto Status = Stub->LoadByName(&ClientContext, Req, &Res);
 +    if (!Status.ok()) {
-+      spdlog::error("[WASI-NN] Failed when calling remote LoadByName: {}"sv,
++      spdprintln("[WASI-NN] Failed when calling remote LoadByName: {}"sv,
 +                    Status.error_message());
 +      return WASINN::ErrNo::RuntimeError;
 +    }
@@ -1110,7 +1110,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +#ifdef WASMEDGE_BUILD_WASI_NN_RPC
 +  if (Env.NNRPCChannel != nullptr) {
 +    // TODO: implement RPC for LoadByNameWithConfig
-+    spdlog::error(
++    spdprintln(
 +        "[WASI-NN] RPC client is not implemented for LoadByNameWithConfig"sv);
 +    return WASINN::ErrNo::UnsupportedOperation;
 +  }
@@ -1123,7 +1123,7 @@ index 3be2bca821d..6ccf2b45912 100644
    }
  
 -  if (Env.NNGraph.size() <= GraphId) {
--    spdlog::error(
+-    spdprintln(
 -        "[WASI-NN] init_execution_context: Graph Id does not exist."sv);
 -    return WASINN::ErrNo::InvalidArgument;
 -  }
@@ -1144,7 +1144,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +    wasi_ephemeral_nn::InitExecutionContextResult Res;
 +    auto Status = Stub->InitExecutionContext(&ClientContext, Req, &Res);
 +    if (!Status.ok()) {
-+      spdlog::error(
++      spdprintln(
 +          "[WASI-NN] Failed when calling remote InitExecutionContext: {}"sv,
 +          Status.error_message());
 +      return WASINN::ErrNo::RuntimeError;
@@ -1155,7 +1155,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +#endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 +
 +  if (Env.NNGraph.size() <= GraphId) {
-+    spdlog::error(
++    spdprintln(
 +        "[WASI-NN] init_execution_context: Graph Id does not exist."sv);
 +    return WASINN::ErrNo::InvalidArgument;
 +  }
@@ -1168,7 +1168,7 @@ index 3be2bca821d..6ccf2b45912 100644
    }
  
 -  if (Env.NNContext.size() <= Context) {
--    spdlog::error("[WASI-NN] set_input: Execution Context does not exist."sv);
+-    spdprintln("[WASI-NN] set_input: Execution Context does not exist."sv);
 -    return WASINN::ErrNo::InvalidArgument;
 -  }
 -
@@ -1176,7 +1176,7 @@ index 3be2bca821d..6ccf2b45912 100644
    //   | dim buf | dim buf len | rtype | data buf | data buf len |
    struct WasiTensorData {
 @@ -225,6 +279,7 @@ WasiNNSetInput::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t Context,
-     spdlog::error("[WASI-NN] Failed when accessing the Tensor memory."sv);
+     spdprintln("[WASI-NN] Failed when accessing the Tensor memory."sv);
      return WASINN::ErrNo::InvalidArgument;
    }
 +
@@ -1205,7 +1205,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +    google::protobuf::Empty Res;
 +    auto Status = Stub->SetInput(&ClientContext, Req, &Res);
 +    if (!Status.ok()) {
-+      spdlog::error("[WASI-NN] Failed when calling remote SetInput: {}"sv,
++      spdprintln("[WASI-NN] Failed when calling remote SetInput: {}"sv,
 +                    Status.error_message());
 +      return WASINN::ErrNo::RuntimeError;
 +    }
@@ -1214,7 +1214,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +#endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 +
 +  if (Env.NNContext.size() <= Context) {
-+    spdlog::error("[WASI-NN] set_input: Execution Context does not exist."sv);
++    spdprintln("[WASI-NN] set_input: Execution Context does not exist."sv);
 +    return WASINN::ErrNo::InvalidArgument;
 +  }
 +
@@ -1226,7 +1226,7 @@ index 3be2bca821d..6ccf2b45912 100644
    }
  
 -  if (Env.NNContext.size() <= Context) {
--    spdlog::error("[WASI-NN] get_output: Execution Context does not exist"sv);
+-    spdprintln("[WASI-NN] get_output: Execution Context does not exist"sv);
 -    return WASINN::ErrNo::InvalidArgument;
 -  }
 -
@@ -1248,7 +1248,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +    wasi_ephemeral_nn::GetOutputResult Res;
 +    auto Status = Stub->GetOutput(&ClientContext, Req, &Res);
 +    if (!Status.ok()) {
-+      spdlog::error("[WASI-NN] Failed when calling remote GetOutput: {}"sv,
++      spdprintln("[WASI-NN] Failed when calling remote GetOutput: {}"sv,
 +                    Status.error_message());
 +      return WASINN::ErrNo::RuntimeError;
 +    }
@@ -1261,7 +1261,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +#endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 +
 +  if (Env.NNContext.size() <= Context) {
-+    spdlog::error("[WASI-NN] get_output: Execution Context does not exist"sv);
++    spdprintln("[WASI-NN] get_output: Execution Context does not exist"sv);
 +    return WASINN::ErrNo::InvalidArgument;
 +  }
 +
@@ -1275,7 +1275,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +#ifdef WASMEDGE_BUILD_WASI_NN_RPC
 +  if (Env.NNRPCChannel != nullptr) {
 +    // TODO: implement RPC for GetOutputSingle
-+    spdlog::error(
++    spdprintln(
 +        "[WASI-NN] RPC client is not implemented for GetOutputSingle"sv);
 +    return WASINN::ErrNo::UnsupportedOperation;
 +  }
@@ -1297,7 +1297,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +    google::protobuf::Empty Res;
 +    auto Status = Stub->Compute(&ClientContext, Req, &Res);
 +    if (!Status.ok()) {
-+      spdlog::error("[WASI-NN] Failed when calling remote Compute: {}"sv,
++      spdprintln("[WASI-NN] Failed when calling remote Compute: {}"sv,
 +                    Status.error_message());
 +      return WASINN::ErrNo::RuntimeError;
 +    }
@@ -1314,7 +1314,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +#ifdef WASMEDGE_BUILD_WASI_NN_RPC
 +  if (Env.NNRPCChannel != nullptr) {
 +    // TODO: implement RPC for ComputeSingle
-+    spdlog::error(
++    spdprintln(
 +        "[WASI-NN] RPC client is not implemented for ComputeSingle"sv);
 +    return WASINN::ErrNo::UnsupportedOperation;
 +  }
@@ -1329,7 +1329,7 @@ index 3be2bca821d..6ccf2b45912 100644
 +#ifdef WASMEDGE_BUILD_WASI_NN_RPC
 +  if (Env.NNRPCChannel != nullptr) {
 +    // TODO: implement RPC for FiniSingle
-+    spdlog::error("[WASI-NN] RPC client is not implemented for FiniSingle"sv);
++    spdprintln("[WASI-NN] RPC client is not implemented for FiniSingle"sv);
 +    return WASINN::ErrNo::UnsupportedOperation;
 +  }
 +#endif

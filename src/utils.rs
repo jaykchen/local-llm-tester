@@ -1,12 +1,10 @@
-use http_req::{request::Method, request::Request, response, uri::Uri};
-use log;
-use reqwest::header::{HeaderMap, AUTHORIZATION};
-use reqwest::{header, Client};
-use secrecy::{ExposeSecret, Secret};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use http_req::{request::Method, request::Request, uri::Uri};
+// use log;
+use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT};
+// use reqwest::{header, Client};
+use secrecy::Secret;
+use serde::Deserialize;
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 use async_openai::{
     config::Config,
@@ -16,16 +14,9 @@ use async_openai::{
         ChatCompletionRequestUserMessageArgs,
         // ChatCompletionTool, ChatCompletionToolArgs, ChatCompletionToolType,
         CreateChatCompletionRequestArgs,
-        CreateEmbeddingRequest,
-        // FinishReason,
-        CreateEmbeddingRequestArgs,
-        CreateEmbeddingResponse,
-        Embedding,
-        EmbeddingUsage,
     },
-    Client as OpenAIClient, Models,
+    Client as OpenAIClient,
 };
-use std::env;
 
 pub fn squeeze_fit_remove_quoted(inp_str: &str, max_len: u16, split: f32) -> String {
     let mut body = String::new();
@@ -114,8 +105,6 @@ pub async fn chain_of_chat(
     gen_len_2: u16,
     error_tag: &str,
 ) -> anyhow::Result<String> {
-    use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT};
-
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     headers.insert(USER_AGENT, HeaderValue::from_static("MyClient/1.0.0"));
@@ -226,8 +215,6 @@ pub async fn chat_inner_async(
     max_token: u16,
     model: &str,
 ) -> anyhow::Result<String> {
-    use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT};
-
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     headers.insert(USER_AGENT, HeaderValue::from_static("MyClient/1.0.0"));
@@ -268,7 +255,7 @@ pub async fn chat_inner_async(
 
     match chat.choices[0].message.clone().content {
         Some(res) => {
-            // log::info!("{:?}", chat.choices[0].message.clone());
+            // println!("{:?}", chat.choices[0].message.clone());
             Ok(res)
         }
         None => Err(anyhow::anyhow!("Failed to get reply from OpenAI")),
