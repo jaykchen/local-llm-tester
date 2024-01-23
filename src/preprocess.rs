@@ -4,31 +4,82 @@
 // use reqwest::{ header, Client };
 use crate::llm::chat_inner_async;
 
-pub async fn chunk_json_vec(json_vec: Vec<Vec<String>>, chunk_size: usize) -> Vec<String> {
+pub fn chunk_for_embed(json_vec: Vec<Vec<String>>, chunk_size: usize) -> Vec<String> {
     let mut out = Vec::new();
+    let mut i = 0;
 
-    for ve in json_vec {
+    while i < json_vec.len() {
         let mut current_chunk = String::new();
-        for line in &ve {
-            if current_chunk.is_empty() {
-                current_chunk.push_str(&line);
-            } else {
-                if current_chunk.len() + line.len() + 1 > chunk_size {
-                    out.push(current_chunk);
-                    current_chunk = line.to_string();
-                } else {
-                    current_chunk.push('\n');
-                    current_chunk.push_str(&line);
-                }
+        let mut current_chunk_size = 0;
+
+        while i < json_vec.len() && json_vec[i].len() == 1 {
+            let line = &json_vec[i][0];
+            let line_len = line.len() + (if current_chunk.is_empty() { 0 } else { 1 });
+
+            if current_chunk_size + line_len > chunk_size && !current_chunk.is_empty() {
+                out.push(current_chunk);
+                current_chunk = String::new();
+                current_chunk_size = 0;
             }
+
+            if !current_chunk.is_empty() {
+                current_chunk.push('\n');
+                current_chunk_size += 1;
+            }
+            current_chunk.push_str(line);
+            current_chunk_size += line.len();
+
+            i += 1; // Move to the next Vec
         }
+
+        if i < json_vec.len() && json_vec[i].len() > 1 {
+            for line in &json_vec[i] {
+                let line_len = line.len() + (if current_chunk.is_empty() { 0 } else { 1 });
+                if current_chunk_size + line_len > chunk_size {
+                    out.push(current_chunk);
+                    current_chunk = String::new();
+                    current_chunk_size = 0;
+                }
+
+                if !current_chunk.is_empty() {
+                    current_chunk.push('\n');
+                    current_chunk_size += 1;
+                }
+                current_chunk.push_str(line);
+                current_chunk_size += line.len();
+            }
+            i += 1; // Move past the paragraph
+        }
+
         if !current_chunk.is_empty() {
             out.push(current_chunk);
         }
-        if ve.join("\n").len() > chunk_size {
-            let summary = summarize_long_chunks(&ve.join("\n")).await;
-            out.push(summary);
+    }
+
+    out
+}
+
+pub fn chunk_for_summarize(json_vec: Vec<Vec<String>>, ingest_window_size: usize) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut current_chunk = String::new();
+
+    for ve in json_vec.iter() {
+        let section = ve.join("\n");
+        let section_size = section.len();
+
+        if !current_chunk.is_empty() && current_chunk.len() + 1 + section_size > ingest_window_size {
+            out.push(current_chunk);
+            current_chunk = section;
+        } else {
+            if !current_chunk.is_empty() {
+                current_chunk.push('\n'); // Add a newline before adding the section.
+            }
+            current_chunk.push_str(&section);
         }
+    }
+
+    if !current_chunk.is_empty() {
+        out.push(current_chunk);
     }
 
     out

@@ -1,10 +1,11 @@
-use clap::{App, Arg};
+use clap::{ App, Arg };
 use dotenv::dotenv;
 use local_llm_tester::embed::*;
 use local_llm_tester::preprocess::*;
 use local_llm_tester::rag_logic::*;
 use local_llm_tester::utils::*;
 use qdrant_client::prelude::*;
+use local_llm_tester::doc_convert::convert_to_text_vec;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -47,11 +48,19 @@ async fn main() -> anyhow::Result<()> {
     // let collection_info = client.collection_info(collection_name).await?;
     // dbg!(collection_info);
 
-    let text_json = include_str!("segmented_text.json");
+    let input_file = "src/k8s.md";
+    let converted = convert_to_text_vec(input_file)?;
 
-    let text_json: Vec<Vec<String>> = serde_json::from_str(text_json).unwrap();
+    let chunked_text_to_embed = chunk_for_embed(converted.clone(), 2000);
+    let _ = populate_collection(chunked_text_to_embed, &client, collection_name).await;
 
-    // let _ = populate_collection(text_json, &client, collection_name).await;
+    let mut summarized_windows = Vec::new();
+
+    for window in chunk_for_summarize(converted, 32000) {
+        let summarized_window = summarize_long_chunks(&window).await;
+        summarized_windows.push(summarized_window);
+    }
+    let _ = populate_collection(summarized_windows, &client, collection_name).await;
 
     // return Ok(());
     let question = "What is the meaning of kubernetes?";

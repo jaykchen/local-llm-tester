@@ -65,12 +65,25 @@ pub fn pooling_candidate_texts(
 }
 
 pub async fn populate_collection(
-    text_json: Vec<Vec<String>>,
+    text_vec: Vec<String>,
     client: &QdrantClient,
     collection_name: &str
 ) {
     let mut id = 0;
-    for line in chunk_json_vec(text_json, 2000).await {
+
+
+    // match collection_info(collection_name).await {
+    //     Ok(ci) => {
+    //         id = ci.points_count;
+    //     }
+    //     Err(e) => {
+    //         log::error!("Cannot get collection stat {}", e);
+    //         send_success("Cannot query database!");
+    //         return;
+    //     }
+    // }
+
+    for line in text_vec {
         match create_embed_req(&line).await {
             Ok(emb) => {
                 println!("Block embed processed: {}", line.chars().take(20).collect::<String>());

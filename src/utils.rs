@@ -149,13 +149,7 @@ pub async fn chain_of_chat(
             return Err(anyhow::anyhow!(error_tag.to_string()));
         }
     }
-    let full_conversation = chat.choices.get(0).map(|choice| &choice.messages);
-    let conversation_text = conversation.iter()
-    .map(|msg| format!("Role: {}, Content: {}", msg.role, msg.content.as_deref().unwrap_or("")))
-    .collect::<Vec<_>>()
-    .join("\n");
 
-    println!("Conversation:\n{}", conversation_text);
     messages.push(
         ChatCompletionRequestUserMessageArgs::default()
             .content(usr_prompt_2)
