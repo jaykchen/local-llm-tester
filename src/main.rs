@@ -1,6 +1,7 @@
 use clap::{ App, Arg };
 use dotenv::dotenv;
 use local_llm_tester::embed::*;
+use local_llm_tester::llm::completion_inner_async;
 use local_llm_tester::preprocess::*;
 use local_llm_tester::rag_logic::*;
 use local_llm_tester::utils::*;
@@ -33,6 +34,14 @@ async fn main() -> anyhow::Result<()> {
             .takes_value(true)
     )
     .get_matches(); */
+
+    let query =
+        "<s> Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n### Instruction:\nYou're a programming bot tasked to analyze GitHub issues data and assign labels to them.\n\n### Input:\nCan you assign labels to the GitHub issue titled `feat: Implement typed function references proposal`, created by `hydai`, stating `This issue pertains to the Typed function references proposal for WebAssembly, aiming to enhance function references for efficient indirect calls and better interoperability. The key goals include enabling direct function calls without runtime checks, representing function pointers without using tables, and facilitating the exchange of function references between modules and the host environment. Additionally, the proposal seeks to support safe closures and separate useful features from the GC proposal.\n\nTo address the requirements, the following tasks need to be completed:\n- Gain familiarity with the Wasm Spec\n- Study the Typed function references Spec\n- Integrate new type definitions and instructions in WasmEdge\n- Implement an option in WasmEdge CLI to enable/disable the proposal\n- Develop unit tests for comprehensive coverage\n\nTo qualify for the LFX mentorship, the applicant should have experience in C++ programming and complete challenge #1221.\n\nReferences:\n- GC Proposal: [WebAssembly GC](https://github.com/WebAssembly/gc)\n- Typed function references Proposal: [Function References](https://github.com/WebAssembly/function-references)`?\n\n### Response:";
+
+    let res = completion_inner_async(&query).await?;
+
+    println!("res: {}", res);
+    return Ok(());
 
     let client = QdrantClient::from_url("http://10.0.0.174:6334").build()?;
 

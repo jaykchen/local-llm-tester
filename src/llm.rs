@@ -1,7 +1,7 @@
 // use http_req::{ request::Method, request::Request, response, uri::Uri };
 // use log;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT};
-// use reqwest::{ header, Client };
+use reqwest::header::{ HeaderMap, HeaderValue, CONTENT_TYPE, USER_AGENT, AUTHORIZATION };
+use reqwest::{ header, Client };
 use secrecy::{
     // ExposeSecret,
     Secret,
@@ -20,6 +20,7 @@ use async_openai::{
     Client as OpenAIClient,
 };
 use std::env;
+use serde::{ Serialize, Deserialize };
 
 pub async fn chain_of_chat(
     sys_prompt_1: &str,
@@ -28,7 +29,7 @@ pub async fn chain_of_chat(
     gen_len_1: u16,
     usr_prompt_2: &str,
     gen_len_2: u16,
-    error_tag: &str,
+    error_tag: &str
 ) -> anyhow::Result<String> {
     let token = env::var("LLM_API_KEY").unwrap_or(String::from("LLM_API_KEY-must-be-set"));
 
@@ -52,10 +53,7 @@ pub async fn chain_of_chat(
             .build()
             .expect("Failed to build system message")
             .into(),
-        ChatCompletionRequestUserMessageArgs::default()
-            .content(usr_prompt_1)
-            .build()?
-            .into(),
+        ChatCompletionRequestUserMessageArgs::default().content(usr_prompt_1).build()?.into()
     ];
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(gen_len_1)
@@ -77,10 +75,7 @@ pub async fn chain_of_chat(
     }
 
     messages.push(
-        ChatCompletionRequestUserMessageArgs::default()
-            .content(usr_prompt_2)
-            .build()?
-            .into(),
+        ChatCompletionRequestUserMessageArgs::default().content(usr_prompt_2).build()?.into()
     );
 
     let request = CreateChatCompletionRequestArgs::default()
@@ -139,7 +134,7 @@ pub async fn chat_inner_async(
     system_prompt: &str,
     user_input: &str,
     max_token: u16,
-    model: &str,
+    model: &str
 ) -> anyhow::Result<String> {
     let token = env::var("LLM_API_KEY").unwrap_or(String::from("LLM_API_KEY-must-be-set"));
     let mut headers = HeaderMap::new();
@@ -160,10 +155,7 @@ pub async fn chat_inner_async(
             .build()
             .expect("Failed to build system message")
             .into(),
-        ChatCompletionRequestUserMessageArgs::default()
-            .content(user_input)
-            .build()?
-            .into(),
+        ChatCompletionRequestUserMessageArgs::default().content(user_input).build()?.into()
     ];
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(max_token)
@@ -172,16 +164,67 @@ pub async fn chat_inner_async(
         .build()?;
 
     match client.chat().create(request).await {
-        Ok(chat) => match chat.choices[0].message.clone().content {
-            Some(res) => {
-                // println!("{:?}", chat.choices[0].message.clone());
-                Ok(res)
+        Ok(chat) =>
+            match chat.choices[0].message.clone().content {
+                Some(res) => {
+                    // println!("{:?}", chat.choices[0].message.clone());
+                    Ok(res)
+                }
+                None => Err(anyhow::anyhow!("Failed to get reply from OpenAI")),
             }
-            None => Err(anyhow::anyhow!("Failed to get reply from OpenAI")),
-        },
         Err(_e) => {
             println!("Error getting response from hosted LLM: {:?}", _e);
             Err(anyhow::anyhow!(_e))
         }
     }
+}
+
+pub async fn completion_inner_async(user_input: &str) -> anyhow::Result<String> {
+    let llm_endpoint = "https://api-inference.huggingface.co/models/jaykchen/tiny".to_string();
+    let llm_api_key = env::var("LLM_API_KEY").expect("LLM_API_KEY-must-be-set");
+
+    let client = Client::new();
+
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {}", llm_api_key)).unwrap()
+    );
+
+    let body = serde_json::json!({
+        "inputs": user_input,
+    });
+
+    use anyhow::Context;
+
+    let response = client
+        .post(llm_endpoint)
+        .headers(headers)
+        .json(&body)
+        .send().await
+        .context("Failed to send request to API")?; // Adds context to the error
+
+    let status_code = response.status();
+
+    if status_code.is_success() {
+        let response_body = response.text().await.context("Failed to read response body")?;
+
+        let completion_response: Vec<Choice> = serde_json
+            ::from_str(&response_body)
+            .context("Failed to parse response from API")?;
+
+        if let Some(choice) = completion_response.get(0) {
+            Ok(choice.generated_text.clone())
+        } else {
+            Err(anyhow::anyhow!("No completion choices found in the response"))
+        }
+    } else {
+        Err(anyhow::anyhow!("Failed to get a successful response from the API"))
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Choice {
+    pub generated_text: String,
 }
